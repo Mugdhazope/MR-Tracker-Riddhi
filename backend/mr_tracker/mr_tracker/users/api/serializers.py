@@ -6,8 +6,18 @@ from mr_tracker.users.models import User
 class UserSerializer(serializers.ModelSerializer[User]):
     class Meta:
         model = User
-        fields = ["username", "name", "url"]
+        fields =[
+            "id",
+            "username",
+            "email",
+            "name",
+            "role",
+        ]
+       
+class LoginSerializer(serializers.Serializer):
+    username = serializers.CharField()
+    password = serializers.CharField(write_only=True)
 
-        extra_kwargs = {
-            "url": {"view_name": "api:user-detail", "lookup_field": "username"},
-        }
+class LogoutSerializer(serializers.Serializer):
+    refresh = serializers.CharField()
+    

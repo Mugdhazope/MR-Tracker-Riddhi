@@ -184,4 +184,5 @@ dependencies = [
     "python-slugify==8.0.4",
     "redis==7.1.0",
     "whitenoise==6.11.0",
+    "djangorestframework-simplejwt==5.4.0",
 ]
