@@ -1,0 +1,7 @@
+# PostgreSQL
+# ------------------------------------------------------------------------------
+POSTGRES_HOST=postgres
+POSTGRES_PORT=5432
+POSTGRES_DB=mr_tracker
+POSTGRES_USER=dhYItJwJtpZPMgKnkbjGVOMzJNhOmEek
+POSTGRES_PASSWORD=ITOl2LQa9ZnWU5ov2enc6zWkGQQDjwnFWPc13Wj2oepjm34qP3IigpXT4zpb8McJ

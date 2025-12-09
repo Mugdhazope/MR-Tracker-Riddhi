@@ -1,0 +1,35 @@
+volumes:
+  mr_tracker_local_postgres_data: {}
+  mr_tracker_local_postgres_data_backups: {}
+  
+
+services:
+  django:
+    build:
+      context: .
+      dockerfile: ./compose/local/django/Dockerfile
+    image: mr_tracker_local_django
+    container_name: mr_tracker_local_django
+    depends_on:
+      - postgres
+    volumes:
+      - /app/.venv
+      - .:/app:z
+    env_file:
+      - ./.envs/.local/.django
+      - ./.envs/.local/.postgres
+    ports:
+      - '8000:8000'
+    command: /start
+
+  postgres:
+    build:
+      context: .
+      dockerfile: ./compose/production/postgres/Dockerfile
+    image: mr_tracker_production_postgres
+    container_name: mr_tracker_local_postgres
+    volumes:
+      - mr_tracker_local_postgres_data:/var/lib/postgresql/18/docker
+      - mr_tracker_local_postgres_data_backups:/backups
+    env_file:
+      - ./.envs/.local/.postgres
