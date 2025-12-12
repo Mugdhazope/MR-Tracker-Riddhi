@@ -23,6 +23,8 @@ urlpatterns = [
     path("accounts/", include("allauth.urls")),
     path("api/visits/", include("mr_tracker.visits.api.urls")),
     path("api/tasks/", include("mr_tracker.tasks.api.urls")),
+    path("api/dashboard/", include("mr_tracker.dashboard.api.urls")),
+
 
     *static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT),
 ]

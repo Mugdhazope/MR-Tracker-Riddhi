@@ -88,7 +88,8 @@ THIRD_PARTY_APPS = [
 LOCAL_APPS = [
     "mr_tracker.users",
     "mr_tracker.visits",
-    "mr_tracker.tasks"
+    "mr_tracker.tasks",
+    "mr_tracker.dashboard"
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
