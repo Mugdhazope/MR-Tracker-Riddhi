@@ -15,9 +15,8 @@ from .serializers import (
     DoctorSerializer, 
     DoctorVisitSerializer, 
     ShopVisitSerializer, 
-    AssignedVisitSerializer
 )
-from mr_tracker.visits.models import DoctorVisit, ShopVisit, AssignedVisit, Doctor
+from mr_tracker.visits.models import DoctorVisit, ShopVisit, Doctor
 
 import logging        
 logger = logging.getLogger(__name__)
@@ -60,101 +59,101 @@ class ShopVisitViewSet(GenericViewSet, ListModelMixin, RetrieveModelMixin, Creat
         serializer.save(mr=self.request.user)
 
 
-class AssignedVisitViewSet(
-    GenericViewSet, 
-    ListModelMixin, 
-    RetrieveModelMixin, 
-    CreateModelMixin, 
-    UpdateModelMixin
-):
-    """
-    ViewSet for managing assigned visits.
+# class AssignedVisitViewSet(
+#     GenericViewSet, 
+#     ListModelMixin, 
+#     RetrieveModelMixin, 
+#     CreateModelMixin, 
+#     UpdateModelMixin
+# ):
+#     """
+#     ViewSet for managing assigned visits.
     
-    Permissions:
-    - Both Admin and MR can technically create (backend is open)
-    - Frontend should only show "Assign Task" button to admins
-    - MRs can view only their assigned visits
-    - MRs can mark their visits as complete
-    """
-    serializer_class = AssignedVisitSerializer
-    permission_classes = [IsAuthenticated]
+#     Permissions:
+#     - Both Admin and MR can technically create (backend is open)
+#     - Frontend should only show "Assign Task" button to admins
+#     - MRs can view only their assigned visits
+#     - MRs can mark their visits as complete
+#     """
+#     serializer_class = AssignedVisitSerializer
+#     permission_classes = [IsAuthenticated]
 
-    def get_queryset(self):
-        """
-        - MRs can only see visits assigned to them
-        - Admins can see all assigned visits
-        """
-        user = self.request.user
-        logger.info(f"GET queryset for user: {user.username} (Role: {user.role})")
+#     def get_queryset(self):
+#         """
+#         - MRs can only see visits assigned to them
+#         - Admins can see all assigned visits
+#         """
+#         user = self.request.user
+#         logger.info(f"GET queryset for user: {user.username} (Role: {user.role})")
         
-        if user.role == "MR":
-            queryset = AssignedVisit.objects.filter(mr=user)
-            logger.info(f"Returning {queryset.count()} visits for MR {user.username}")
-            return queryset
+#         if user.role == "MR":
+#             queryset = AssignedVisit.objects.filter(mr=user)
+#             logger.info(f"Returning {queryset.count()} visits for MR {user.username}")
+#             return queryset
         
-        queryset = AssignedVisit.objects.all()
-        logger.info(f"Returning all {queryset.count()} visits for admin {user.username}")
-        return queryset
+#         queryset = AssignedVisit.objects.all()
+#         logger.info(f"Returning all {queryset.count()} visits for admin {user.username}")
+#         return queryset
     
-    def perform_create(self, serializer):
-        """
-        Creates an assigned visit.
-        The admin field is automatically set to the current user.
+#     def perform_create(self, serializer):
+#         """
+#         Creates an assigned visit.
+#         The admin field is automatically set to the current user.
         
-        NOTE: Backend allows both admin and MR to create (for flexibility)
-        Frontend should only show "Assign Task" button to admins.
-        """
-        user = self.request.user
+#         NOTE: Backend allows both admin and MR to create (for flexibility)
+#         Frontend should only show "Assign Task" button to admins.
+#         """
+#         user = self.request.user
         
-        logger.info(f"AssignedVisit creation by: {user.username} (ID: {user.id}, Role: {user.role})")
+#         logger.info(f"AssignedVisit creation by: {user.username} (ID: {user.id}, Role: {user.role})")
         
-        serializer.save(admin=user)
-        logger.info(f"AssignedVisit created successfully by {user.username}")
+#         serializer.save(admin=user)
+#         logger.info(f"AssignedVisit created successfully by {user.username}")
 
-    @extend_schema(
-        request=None,  
-        responses={
-            200: AssignedVisitSerializer,
-            400: OpenApiResponse(description="Visit already completed"),
-            403: OpenApiResponse(description="Not authorized"),
-            404: OpenApiResponse(description="Visit not found"),
-        },
-        description="Mark an assigned visit as completed. Only the MR who was assigned the visit can mark it complete. No request body needed."
-    )
-    @action(detail=True, methods=["post"])
-    def complete(self, request, pk=None):
-        """
-        Mark an assigned visit as completed.
-        Only the MR who was assigned the visit can mark it complete.
+#     @extend_schema(
+#         request=None,  
+#         responses={
+#             200: AssignedVisitSerializer,
+#             400: OpenApiResponse(description="Visit already completed"),
+#             403: OpenApiResponse(description="Not authorized"),
+#             404: OpenApiResponse(description="Visit not found"),
+#         },
+#         description="Mark an assigned visit as completed. Only the MR who was assigned the visit can mark it complete. No request body needed."
+#     )
+#     @action(detail=True, methods=["post"])
+#     def complete(self, request, pk=None):
+#         """
+#         Mark an assigned visit as completed.
+#         Only the MR who was assigned the visit can mark it complete.
         
-        Endpoint: POST /api/visits/assigned-visits/{id}/complete/
-        No request body needed - just call the endpoint.
-        """
-        assigned_visit = self.get_object()
-        user = request.user
+#         Endpoint: POST /api/visits/assigned-visits/{id}/complete/
+#         No request body needed - just call the endpoint.
+#         """
+#         assigned_visit = self.get_object()
+#         user = request.user
 
-        logger.info(f"Complete action called by {user.username} (Role: {user.role}) for visit {pk}")
+#         logger.info(f"Complete action called by {user.username} (Role: {user.role}) for visit {pk}")
 
-        if user.role != "MR":
-            logger.warning(f"Non-MR user {user.username} attempted to complete visit")
-            raise PermissionDenied("Only MRs can complete visits")
+#         if user.role != "MR":
+#             logger.warning(f"Non-MR user {user.username} attempted to complete visit")
+#             raise PermissionDenied("Only MRs can complete visits")
         
-        if assigned_visit.mr != user:
-            logger.warning(f"MR {user.username} attempted to complete visit assigned to {assigned_visit.mr.username}")
-            raise PermissionDenied("You can only complete visits assigned to you")
+#         if assigned_visit.mr != user:
+#             logger.warning(f"MR {user.username} attempted to complete visit assigned to {assigned_visit.mr.username}")
+#             raise PermissionDenied("You can only complete visits assigned to you")
 
-        if assigned_visit.completed:
-            logger.info(f"Visit {pk} already marked as completed")
-            return Response(
-                {"detail": "This visit is already marked as completed"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+#         if assigned_visit.completed:
+#             logger.info(f"Visit {pk} already marked as completed")
+#             return Response(
+#                 {"detail": "This visit is already marked as completed"},
+#                 status=status.HTTP_400_BAD_REQUEST
+#             )
 
-        assigned_visit.completed = True
-        assigned_visit.completed_at = timezone.now()
-        assigned_visit.save()
+#         assigned_visit.completed = True
+#         assigned_visit.completed_at = timezone.now()
+#         assigned_visit.save()
 
-        logger.info(f"Visit {pk} marked as completed by {user.username} at {assigned_visit.completed_at}")
+#         logger.info(f"Visit {pk} marked as completed by {user.username} at {assigned_visit.completed_at}")
 
-        serializer = self.get_serializer(assigned_visit)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+#         serializer = self.get_serializer(assigned_visit)
+#         return Response(serializer.data, status=status.HTTP_200_OK)

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Doctor, DoctorVisit, ShopVisit, AssignedVisit
+from .models import Doctor, DoctorVisit, ShopVisit
 
 
 @admin.register(Doctor)
@@ -27,10 +27,10 @@ class ShopVisitAdmin(admin.ModelAdmin):
     ordering = ("-visit_date", "-visit_time")
 
 
-@admin.register(AssignedVisit)
-class AssignedVisitAdmin(admin.ModelAdmin):
-    list_display = ("id", "admin", "mr", "doctor", "assigned_date", "assigned_time", "completed")
-    list_filter = ("completed", "assigned_date", "doctor")
-    search_fields = ("admin__username", "mr__username", "doctor__name", "notes")
-    readonly_fields = ("assigned_date", "assigned_time", "completed_at")
-    ordering = ("-assigned_date", "-assigned_time")
+# @admin.register(AssignedVisit)
+# class AssignedVisitAdmin(admin.ModelAdmin):
+#     list_display = ("id", "admin", "mr", "doctor", "assigned_date", "assigned_time", "completed")
+#     list_filter = ("completed", "assigned_date", "doctor")
+#     search_fields = ("admin__username", "mr__username", "doctor__name", "notes")
+#     readonly_fields = ("assigned_date", "assigned_time", "completed_at")
+#     ordering = ("-assigned_date", "-assigned_time")

@@ -54,22 +54,22 @@ class ShopVisit(models.Model):
         ordering = ['-visit_date', '-visit_time']
 
 
-class AssignedVisit(models.Model):
-    admin = models.ForeignKey(User, on_delete=models.CASCADE, related_name='assigned_by')
-    mr = models.ForeignKey(User, on_delete=models.CASCADE, related_name='assiged_to')
-    doctor = models.ForeignKey(Doctor, on_delete=models.CASCADE, related_name='assigned_doctor')
+# class AssignedVisit(models.Model):
+#     admin = models.ForeignKey(User, on_delete=models.CASCADE, related_name='assigned_by')
+#     mr = models.ForeignKey(User, on_delete=models.CASCADE, related_name='assiged_to')
+#     doctor = models.ForeignKey(Doctor, on_delete=models.CASCADE, related_name='assigned_doctor')
 
-    assigned_date = models.DateField(auto_now_add=True)
-    assigned_time = models.TimeField(auto_now_add=True)
+#     assigned_date = models.DateField(auto_now_add=True)
+#     assigned_time = models.TimeField(auto_now_add=True)
 
-    notes = models.TextField(blank=True)
+#     notes = models.TextField(blank=True)
 
-    completed = models.BooleanField(default=False)
+#     completed = models.BooleanField(default=False)
 
-    completed_at = models.DateTimeField(null=True, blank=True)
+#     completed_at = models.DateTimeField(null=True, blank=True)
 
-    def __str__(self):
-        return f"Assigned Visit of {self.doctor} to {self.mr.username} by {self.admin.username}"
+#     def __str__(self):
+#         return f"Assigned Visit of {self.doctor} to {self.mr.username} by {self.admin.username}"
     
 
 
