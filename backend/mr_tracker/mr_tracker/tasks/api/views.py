@@ -54,6 +54,7 @@ class DoctorVisitTaskViewSet(CreateModelMixin,
             gps_long=gps_long,
             notes=notes,
             completed=True,
+            visit_type='task',  # Mark as task-based visit
         )
 
         task.visit_record = visit

@@ -23,7 +23,7 @@ export interface AssignedTask {
 
 interface AssignedTasksSectionProps {
   tasks: AssignedTask[];
-  onMarkComplete: (taskId: string) => void;
+  onMarkComplete: (taskId: string) => Promise<void> | void;
 }
 
 export function AssignedTasksSection({ tasks, onMarkComplete }: AssignedTasksSectionProps) {
@@ -36,17 +36,25 @@ export function AssignedTasksSection({ tasks, onMarkComplete }: AssignedTasksSec
   const pendingTodayTasks = todaysTasks.filter(task => task.status === 'pending');
   const completedTodayTasks = todaysTasks.filter(task => task.status === 'completed');
 
-  const handleMarkComplete = (taskId: string) => {
+  const handleMarkComplete = async (taskId: string) => {
     setCompletingTaskId(taskId);
-    
-    setTimeout(() => {
-      onMarkComplete(taskId);
-      setCompletingTaskId(null);
+
+    try {
+      await onMarkComplete(taskId);
       toast({
         title: 'Task Completed',
         description: 'Visit marked as completed successfully.',
       });
-    }, 500);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to complete task';
+      toast({
+        title: 'Error completing task',
+        description: message,
+        variant: 'destructive',
+      });
+    } finally {
+      setCompletingTaskId(null);
+    }
   };
 
   const formatDate = (dateStr: string) => {

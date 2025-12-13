@@ -1,17 +1,33 @@
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar, Clock, User, Stethoscope, CheckCircle2 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { useState, useEffect } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Calendar, Clock, User, Stethoscope, CheckCircle2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { createTask } from "@/lib/api";
 
 interface AssignTaskModalProps {
   open: boolean;
   onClose: () => void;
+  mrs: Array<{ id: number; name: string; username: string }>;
+  doctors: Array<{ id: number; name: string; specialization: string }>;
   onTaskAssigned?: (task: AssignedTask) => void;
+  defaultMRId?: number | string;
+  defaultDoctorId?: number | string;
 }
 
 export interface AssignedTask {
@@ -23,90 +39,105 @@ export interface AssignedTask {
   date: string;
   time?: string;
   notes?: string;
-  status: 'pending' | 'completed';
+  status: "pending" | "completed";
   createdAt: string;
 }
 
-const mrList = [
-  { id: '1', name: 'Rahul Kumar', territory: 'North Delhi' },
-  { id: '2', name: 'Priya Sharma', territory: 'South Delhi' },
-  { id: '3', name: 'Amit Rajan', territory: 'West Delhi' },
-  { id: '4', name: 'Sneha Mishra', territory: 'East Delhi' },
-  { id: '5', name: 'Vikram Thakur', territory: 'Central Delhi' },
-];
-
-const doctorList = [
-  { id: '1', name: 'Dr. Sharma', specialty: 'Cardiologist' },
-  { id: '2', name: 'Dr. Patel', specialty: 'General Physician' },
-  { id: '3', name: 'Dr. Mehta', specialty: 'Neurologist' },
-  { id: '4', name: 'Dr. Singh', specialty: 'Orthopedic' },
-  { id: '5', name: 'Dr. Gupta', specialty: 'Dermatologist' },
-  { id: '6', name: 'Dr. Verma', specialty: 'Pediatrician' },
-];
-
-export function AssignTaskModal({ open, onClose, onTaskAssigned }: AssignTaskModalProps) {
+export function AssignTaskModal({
+  open,
+  onClose,
+  onTaskAssigned,
+  mrs,
+  doctors,
+  defaultMRId,
+  defaultDoctorId,
+}: AssignTaskModalProps) {
   const { toast } = useToast();
-  const [selectedMR, setSelectedMR] = useState('');
-  const [selectedDoctor, setSelectedDoctor] = useState('');
-  const [date, setDate] = useState('');
-  const [time, setTime] = useState('');
-  const [notes, setNotes] = useState('');
+  const [selectedMR, setSelectedMR] = useState("");
+  const [selectedDoctor, setSelectedDoctor] = useState("");
+  const [date, setDate] = useState("");
+  const [time, setTime] = useState("");
+  const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
   const handleSubmit = () => {
-    if (!selectedMR || !selectedDoctor || !date) {
+    if (!selectedMR || !selectedDoctor || !date || !time) {
       toast({
-        title: 'Missing fields',
-        description: 'Please select MR, doctor, and date.',
-        variant: 'destructive',
+        title: "Missing fields",
+        description: "Please select MR, doctor, date, and time.",
+        variant: "destructive",
       });
       return;
     }
 
     setIsSubmitting(true);
 
-    setTimeout(() => {
-      const mr = mrList.find(m => m.id === selectedMR);
-      const doctor = doctorList.find(d => d.id === selectedDoctor);
+    createTask({
+      assigned_to: Number(selectedMR),
+      assigned_doctor: Number(selectedDoctor),
+      due_date: date,
+      due_time: time,
+      notes: notes || undefined,
+    })
+      .then((created: any) => {
+        onTaskAssigned?.({
+          id: String(created?.id ?? `task-${Date.now()}`),
+          mrId: selectedMR,
+          mrName: "",
+          doctorName: "",
+          doctorSpecialty: "",
+          date,
+          time,
+          notes: notes || undefined,
+          status: "pending",
+          createdAt: new Date().toISOString(),
+        });
+        setShowSuccess(true);
 
-      const newTask: AssignedTask = {
-        id: `task-${Date.now()}`,
-        mrId: selectedMR,
-        mrName: mr?.name || '',
-        doctorName: doctor?.name || '',
-        doctorSpecialty: doctor?.specialty || '',
-        date,
-        time: time || undefined,
-        notes: notes || undefined,
-        status: 'pending',
-        createdAt: new Date().toISOString(),
-      };
-
-      onTaskAssigned?.(newTask);
-      setIsSubmitting(false);
-      setShowSuccess(true);
-
-      setTimeout(() => {
-        setShowSuccess(false);
-        resetForm();
-        onClose();
-      }, 1500);
-    }, 500);
+        setTimeout(() => {
+          setShowSuccess(false);
+          resetForm();
+          onClose();
+        }, 1200);
+      })
+      .catch((error) => {
+        const message =
+          error instanceof Error ? error.message : "Could not assign task";
+        toast({
+          title: "Error",
+          description: message,
+          variant: "destructive",
+        });
+      })
+      .finally(() => {
+        setIsSubmitting(false);
+      });
   };
 
   const resetForm = () => {
-    setSelectedMR('');
-    setSelectedDoctor('');
-    setDate('');
-    setTime('');
-    setNotes('');
+    setSelectedMR("");
+    setSelectedDoctor("");
+    setDate("");
+    setTime("");
+    setNotes("");
   };
 
   const handleClose = () => {
     resetForm();
     onClose();
   };
+
+  useEffect(() => {
+    if (open) {
+      if (defaultMRId && !selectedMR) {
+        setSelectedMR(String(defaultMRId));
+      }
+      if (defaultDoctorId && !selectedDoctor) {
+        setSelectedDoctor(String(defaultDoctorId));
+      }
+    }
+  }, [open, defaultMRId, defaultDoctorId]);
 
   if (showSuccess) {
     return (
@@ -116,7 +147,9 @@ export function AssignTaskModal({ open, onClose, onTaskAssigned }: AssignTaskMod
             <div className="w-20 h-20 rounded-full bg-secondary/10 flex items-center justify-center mb-4">
               <CheckCircle2 className="w-10 h-10 text-secondary" />
             </div>
-            <h3 className="text-xl font-semibold text-foreground mb-2">Task Assigned!</h3>
+            <h3 className="text-xl font-semibold text-foreground mb-2">
+              Task Assigned!
+            </h3>
             <p className="text-muted-foreground text-center">
               The visit task has been assigned successfully.
             </p>
@@ -147,9 +180,9 @@ export function AssignTaskModal({ open, onClose, onTaskAssigned }: AssignTaskMod
                 <SelectValue placeholder="Choose MR..." />
               </SelectTrigger>
               <SelectContent>
-                {mrList.map((mr) => (
-                  <SelectItem key={mr.id} value={mr.id}>
-                    {mr.name} - {mr.territory}
+                {mrs.map((mr) => (
+                  <SelectItem key={mr.id} value={String(mr.id)}>
+                    {mr.name || mr.username}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -166,9 +199,9 @@ export function AssignTaskModal({ open, onClose, onTaskAssigned }: AssignTaskMod
                 <SelectValue placeholder="Choose Doctor..." />
               </SelectTrigger>
               <SelectContent>
-                {doctorList.map((doctor) => (
-                  <SelectItem key={doctor.id} value={doctor.id}>
-                    {doctor.name} - {doctor.specialty}
+                {doctors.map((doctor) => (
+                  <SelectItem key={doctor.id} value={String(doctor.id)}>
+                    {doctor.name} - {doctor.specialization}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -184,7 +217,7 @@ export function AssignTaskModal({ open, onClose, onTaskAssigned }: AssignTaskMod
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              min={new Date().toISOString().split('T')[0]}
+              min={new Date().toISOString().split("T")[0]}
             />
           </div>
 
@@ -216,7 +249,7 @@ export function AssignTaskModal({ open, onClose, onTaskAssigned }: AssignTaskMod
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={isSubmitting}>
-            {isSubmitting ? 'Assigning...' : 'Assign Task'}
+            {isSubmitting ? "Assigning..." : "Assign Task"}
           </Button>
         </div>
       </DialogContent>

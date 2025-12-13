@@ -9,9 +9,12 @@ class RecentVisitSerializer(serializers.Serializer):
     doctor = serializers.CharField()
     time = serializers.CharField()
     notes = serializers.CharField()
+    gps_lat = serializers.FloatField(allow_null=True, required=False)
+    gps_long = serializers.FloatField(allow_null=True, required=False)
 
 
 class MRTrackingSerializer(serializers.Serializer):
+    mr_id = serializers.IntegerField(required=False)
     mr = serializers.CharField()
     visits_today = serializers.IntegerField()
     first_punch = serializers.CharField(allow_null=True)

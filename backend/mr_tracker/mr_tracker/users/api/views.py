@@ -6,11 +6,13 @@ from rest_framework.mixins import UpdateModelMixin
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 from rest_framework.views import APIView
-from rest_framework.response import Response
 from mr_tracker.users.models import User
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from drf_spectacular.utils import extend_schema
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import PermissionDenied
+from rest_framework.permissions import AllowAny
 
 
 
@@ -33,6 +35,7 @@ class UserViewSet(RetrieveModelMixin, ListModelMixin, UpdateModelMixin, GenericV
 
 
 class MRLoginView(APIView):
+    permission_classes = [AllowAny]
 
     @extend_schema(
         request=LoginSerializer,
@@ -70,6 +73,7 @@ class MRLoginView(APIView):
 
 
 class AdminLoginView(APIView):
+    permission_classes = [AllowAny]
 
     @extend_schema(
         request=LoginSerializer,
@@ -120,3 +124,14 @@ class LogoutView(APIView):
             return Response(status=status.HTTP_205_RESET_CONTENT)
         except Exception as e:
             return Response(status=status.HTTP_400_BAD_REQUEST)
+
+
+class MRListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role != "admin":
+            raise PermissionDenied("Only admins can list MRs.")
+
+        mrs = User.objects.filter(role="MR").values("id", "username", "name")
+        return Response(list(mrs), status=status.HTTP_200_OK)

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -7,41 +7,65 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { MapPin, Loader2, CheckCircle2, X, Plus, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { createDoctor, createDoctorVisit } from '@/lib/api';
 
 interface PunchVisitModalProps {
   open: boolean;
   onClose: () => void;
+  doctors: Array<{ id: number; name: string; specialization: string }>;
+  onVisitLogged?: () => void;
+  onDoctorCreated?: () => void;
 }
-const doctorsList = [
-  { id: '1', name: 'Dr. Sharma', specialty: 'Cardiologist' },
-  { id: '2', name: 'Dr. Patel', specialty: 'General Physician' },
-  { id: '3', name: 'Dr. Mehta', specialty: 'Pediatrician' },
-  { id: '4', name: 'Dr. Singh', specialty: 'Orthopedic' },
-  { id: '5', name: 'Dr. Gupta', specialty: 'Dermatologist' },
-];
 
 type ModalState = 'form' | 'success' | 'add-doctor';
 
-export function PunchVisitModal({ open, onClose }: PunchVisitModalProps) {
+export function PunchVisitModal({ open, onClose, doctors, onVisitLogged, onDoctorCreated }: PunchVisitModalProps) {
   const { toast } = useToast();
   const [modalState, setModalState] = useState<ModalState>('form');
   const [gpsStatus, setGpsStatus] = useState<'acquiring' | 'acquired' | 'failed'>('acquiring');
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [selectedDoctor, setSelectedDoctor] = useState('');
   const [notes, setNotes] = useState('');
   const [successData, setSuccessData] = useState<{ doctorName: string; time: string } | null>(null);
   
   const [newDoctor, setNewDoctor] = useState({ name: '', specialty: '' });
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSavingVisit, setIsSavingVisit] = useState(false);
+  const [isCreatingDoctor, setIsCreatingDoctor] = useState(false);
 
   useEffect(() => {
     if (open && modalState === 'form') {
       setGpsStatus('acquiring');
-      const timer = setTimeout(() => {
-        setGpsStatus('acquired');
-      }, 2000);
-      return () => clearTimeout(timer);
+      if (!navigator.geolocation) {
+        setGpsStatus('failed');
+        toast({
+          title: 'Location unavailable',
+          description: 'GPS not supported. You can still log the visit.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setCoords({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          });
+          setGpsStatus('acquired');
+        },
+        () => {
+          setGpsStatus('failed');
+          toast({
+            title: 'Could not get location',
+            description: 'Please allow location access to attach GPS.',
+            variant: 'destructive',
+          });
+        },
+        { enableHighAccuracy: true, timeout: 8000 },
+      );
     }
-  }, [open, modalState]);
+  }, [open, modalState, toast]);
 
   useEffect(() => {
     if (modalState === 'success') {
@@ -57,12 +81,13 @@ export function PunchVisitModal({ open, onClose }: PunchVisitModalProps) {
     setSelectedDoctor('');
     setNotes('');
     setGpsStatus('acquiring');
+    setCoords(null);
     setSuccessData(null);
     setNewDoctor({ name: '', specialty: '' });
     onClose();
   };
 
-  const handleSaveVisit = () => {
+  const handleSaveVisit = async () => {
     if (!selectedDoctor) {
       toast({
         title: 'Select a doctor',
@@ -72,7 +97,17 @@ export function PunchVisitModal({ open, onClose }: PunchVisitModalProps) {
       return;
     }
 
-    const doctor = doctorsList.find(d => d.id === selectedDoctor);
+    setIsSavingVisit(true);
+
+    try {
+      await createDoctorVisit({
+        doctor_name: Number(selectedDoctor),
+        gps_lat: coords?.lat,
+        gps_long: coords?.lng,
+        notes: notes || undefined,
+      });
+
+      const doctor = doctors.find(d => String(d.id) === selectedDoctor);
     const time = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
     
     setSuccessData({
@@ -80,9 +115,20 @@ export function PunchVisitModal({ open, onClose }: PunchVisitModalProps) {
       time,
     });
     setModalState('success');
+      onVisitLogged?.();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not save visit';
+      toast({
+        title: 'Error saving visit',
+        description: message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSavingVisit(false);
+    }
   };
 
-  const handleAddDoctor = () => {
+  const handleAddDoctor = async () => {
     if (!newDoctor.name || !newDoctor.specialty) {
       toast({
         title: 'Missing information',
@@ -91,17 +137,40 @@ export function PunchVisitModal({ open, onClose }: PunchVisitModalProps) {
       });
       return;
     }
-    toast({
-      title: 'Doctor added',
-      description: `${newDoctor.name} has been added to your list.`,
-    });
-    setNewDoctor({ name: '', specialty: '' });
-    setModalState('form');
+    setIsCreatingDoctor(true);
+    try {
+      const created: any = await createDoctor({
+        name: newDoctor.name,
+        specialization: newDoctor.specialty,
+      });
+
+      toast({
+        title: 'Doctor added',
+        description: `${newDoctor.name} has been added to your list.`,
+      });
+      setNewDoctor({ name: '', specialty: '' });
+      setSelectedDoctor(String(created?.id || ''));
+      onDoctorCreated?.();
+      setModalState('form');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not add doctor';
+      toast({
+        title: 'Error adding doctor',
+        description: message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsCreatingDoctor(false);
+    }
   };
 
-  const filteredDoctors = doctorsList.filter(doctor =>
-    doctor.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    doctor.specialty.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredDoctors = useMemo(
+    () =>
+      doctors.filter(doctor =>
+        doctor.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        doctor.specialization.toLowerCase().includes(searchQuery.toLowerCase())
+      ),
+    [doctors, searchQuery],
   );
 
   return (
@@ -155,10 +224,10 @@ export function PunchVisitModal({ open, onClose }: PunchVisitModalProps) {
                   </SelectTrigger>
                   <SelectContent>
                     {filteredDoctors.map((doctor) => (
-                      <SelectItem key={doctor.id} value={doctor.id}>
+                      <SelectItem key={doctor.id} value={String(doctor.id)}>
                         <div className="flex flex-col">
                           <span>{doctor.name}</span>
-                          <span className="text-xs text-muted-foreground">{doctor.specialty}</span>
+                          <span className="text-xs text-muted-foreground">{doctor.specialization}</span>
                         </div>
                       </SelectItem>
                     ))}
@@ -192,11 +261,11 @@ export function PunchVisitModal({ open, onClose }: PunchVisitModalProps) {
                 <Button 
                   variant="hero" 
                   className="flex-1 h-11"
-                  disabled={gpsStatus !== 'acquired'}
+                  disabled={gpsStatus === 'acquiring' || isSavingVisit}
                   onClick={handleSaveVisit}
                 >
                   <MapPin className="w-4 h-4 mr-2" />
-                  Save Visit
+                  {gpsStatus === 'acquiring' || isSavingVisit ? 'Saving...' : 'Save Visit'}
                 </Button>
               </div>
             </div>
@@ -246,8 +315,8 @@ export function PunchVisitModal({ open, onClose }: PunchVisitModalProps) {
                 <Button variant="outline" className="flex-1 h-11" onClick={() => setModalState('form')}>
                   Cancel
                 </Button>
-                <Button variant="hero" className="flex-1 h-11" onClick={handleAddDoctor}>
-                  Add Doctor
+                <Button variant="hero" className="flex-1 h-11" onClick={handleAddDoctor} disabled={isCreatingDoctor}>
+                  {isCreatingDoctor ? 'Adding...' : 'Add Doctor'}
                 </Button>
               </div>
             </div>

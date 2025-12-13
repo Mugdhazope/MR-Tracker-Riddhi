@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { 
@@ -18,83 +18,95 @@ import { PunchVisitModal } from '@/components/mr/PunchVisitModal';
 import { MedicalShopVisitModal, MedicalShopVisit } from '@/components/mr/MedicalShopVisitModal';
 import { MedicalShopVisitsSection } from '@/components/mr/MedicalShopVisitsSection';
 import { AssignedTasksSection, AssignedTask } from '@/components/mr/AssignedTasksSection';
-
-const todaysVisits = [
-  { id: 1, doctorName: 'Dr. Sharma', time: '9:30 AM', status: 'completed' },
-  { id: 2, doctorName: 'Dr. Patel', time: '11:00 AM', status: 'completed' },
-  { id: 3, doctorName: 'Dr. Mehta', time: '1:30 PM', status: 'completed' },
-];
-
-const lastVisit = { doctorName: 'Dr. Mehta', time: '1:30 PM' };
-
-const initialAssignedTasks: AssignedTask[] = [
-  { 
-    id: 'task-1', 
-    doctorName: 'Dr. Kapoor', 
-    doctorSpecialty: 'Cardiologist',
-    date: new Date().toISOString().split('T')[0],
-    time: '10:30',
-    notes: 'Discuss new cardiac medication samples',
-    status: 'pending'
-  },
-  { 
-    id: 'task-2', 
-    doctorName: 'Dr. Reddy', 
-    doctorSpecialty: 'General Physician',
-    date: new Date().toISOString().split('T')[0],
-    time: '14:00',
-    status: 'pending'
-  },
-  { 
-    id: 'task-3', 
-    doctorName: 'Dr. Joshi', 
-    doctorSpecialty: 'Orthopedic',
-    date: new Date(Date.now() + 86400000).toISOString().split('T')[0],
-    time: '11:00',
-    notes: 'Product demo for joint supplements',
-    status: 'pending'
-  },
-  { 
-    id: 'task-4', 
-    doctorName: 'Dr. Nair', 
-    doctorSpecialty: 'Neurologist',
-    date: new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0],
-    status: 'pending'
-  },
-];
-
-const initialShopVisits: MedicalShopVisit[] = [
-  {
-    id: 'shop-1',
-    shopName: 'MedPlus Pharmacy',
-    location: 'Sector 18, Noida',
-    notes: 'Discussed new product range',
-    contactPerson: 'Ramesh Kumar',
-    time: '10:15 AM',
-    date: new Date().toISOString().split('T')[0],
-  },
-];
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { 
+  completeTask, 
+  fetchDoctors, 
+  fetchMRDashboard, 
+  fetchTasks, 
+  getStoredUser, 
+  logout 
+} from '@/lib/api';
 
 export default function MRDashboard() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [isPunchModalOpen, setIsPunchModalOpen] = useState(false);
   const [isShopModalOpen, setIsShopModalOpen] = useState(false);
-  const [isOnline, setIsOnline] = useState(true);
-  const [assignedTasks, setAssignedTasks] = useState<AssignedTask[]>(initialAssignedTasks);
-  const [shopVisits, setShopVisits] = useState<MedicalShopVisit[]>(initialShopVisits);
+  const [isOnline] = useState(true);
+  const user = useMemo(() => getStoredUser(), []);
 
-  const handleMarkTaskComplete = (taskId: string) => {
-    setAssignedTasks(prev => 
-      prev.map(task => 
-        task.id === taskId ? { ...task, status: 'completed' } : task
-      )
-    );
-  };
+  useEffect(() => {
+    if (!user) {
+      navigate('/login');
+    } else if (user.role !== 'MR') {
+      navigate('/admin/dashboard');
+    }
+  }, [navigate, user]);
 
-  const handleShopVisitSave = (visit: MedicalShopVisit) => {
-    setShopVisits(prev => [visit, ...prev]);
-  };
+  const doctorsQuery = useQuery({
+    queryKey: ['doctors'],
+    queryFn: fetchDoctors,
+  });
+
+  const dashboardQuery = useQuery({
+    queryKey: ['mr-dashboard'],
+    queryFn: fetchMRDashboard,
+  });
+
+  const tasksQuery = useQuery({
+    queryKey: ['tasks'],
+    queryFn: fetchTasks,
+  });
+
+  const doctorMap = useMemo(() => {
+    const map = new Map<number, { name: string; specialization: string }>();
+    (doctorsQuery.data || []).forEach((doctor) => {
+      map.set(doctor.id, { name: doctor.name, specialization: doctor.specialization });
+    });
+    return map;
+  }, [doctorsQuery.data]);
+
+  const assignedTasks: AssignedTask[] = useMemo(
+    () =>
+      (tasksQuery.data || []).map((task) => ({
+        id: String(task.id),
+        doctorName: doctorMap.get(task.assigned_doctor)?.name || 'Doctor',
+        doctorSpecialty: doctorMap.get(task.assigned_doctor)?.specialization || 'Specialization not set',
+        date: task.due_date,
+        time: task.due_time,
+        notes: task.notes,
+        status: task.completed ? 'completed' : 'pending',
+      })),
+    [doctorMap, tasksQuery.data],
+  );
+
+  const todaysVisits = useMemo(
+    () =>
+      (dashboardQuery.data?.todays_doctor_visits || []).map((visit, index) => ({
+        id: index + 1,
+        doctorName: visit.doctor,
+        time: visit.time,
+        status: 'completed' as const,
+      })),
+    [dashboardQuery.data?.todays_doctor_visits],
+  );
+
+  const shopVisits: MedicalShopVisit[] = useMemo(
+    () =>
+      (dashboardQuery.data?.todays_shop_visits || []).map((visit, index) => ({
+        id: `shop-${index}`,
+        shopName: visit.shop_name,
+        location: visit.location || 'NA',
+        notes: visit.notes,
+        time: visit.time,
+        date: new Date().toISOString().split('T')[0],
+      })),
+    [dashboardQuery.data?.todays_shop_visits],
+  );
+
+  const lastVisit = todaysVisits[0];
 
   const currentDate = new Date().toLocaleDateString('en-IN', {
     weekday: 'long',
@@ -115,12 +127,46 @@ export default function MRDashboard() {
     return 'Good Evening';
   };
 
-  const handleLogout = () => {
+  const completeTaskMutation = useMutation({
+    mutationFn: async (taskId: number) => {
+      let gps_lat: number | undefined;
+      let gps_long: number | undefined;
+
+      try {
+        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+          if (!navigator.geolocation) reject(new Error('GPS not available'));
+          navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 7000 });
+        });
+        gps_lat = position.coords.latitude;
+        gps_long = position.coords.longitude;
+      } catch {
+        // GPS optional; continue without coordinates
+      }
+
+      return completeTask(taskId, { gps_lat, gps_long });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['mr-dashboard'] });
+    },
+  });
+
+  const handleMarkTaskComplete = async (taskId: string) => {
+    await completeTaskMutation.mutateAsync(Number(taskId));
+  };
+
+  const handleLogout = async () => {
+    await logout();
     toast({
       title: 'Logged out',
       description: 'You have been logged out successfully.',
     });
     navigate('/login');
+  };
+
+  const handleVisitLogged = () => {
+    queryClient.invalidateQueries({ queryKey: ['mr-dashboard'] });
+    queryClient.invalidateQueries({ queryKey: ['tasks'] });
   };
 
   return (
@@ -141,7 +187,7 @@ export default function MRDashboard() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">{getGreeting()}</p>
-                <h1 className="font-semibold text-foreground">Rahul Kumar</h1>
+                <h1 className="font-semibold text-foreground">{user?.name || user?.username || 'MR'}</h1>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -269,12 +315,15 @@ export default function MRDashboard() {
       <PunchVisitModal 
         open={isPunchModalOpen} 
         onClose={() => setIsPunchModalOpen(false)} 
+        doctors={doctorsQuery.data || []}
+        onVisitLogged={handleVisitLogged}
+        onDoctorCreated={() => queryClient.invalidateQueries({ queryKey: ['doctors'] })}
       />
 
       <MedicalShopVisitModal
         open={isShopModalOpen}
         onClose={() => setIsShopModalOpen(false)}
-        onSave={handleShopVisitSave}
+        onVisitLogged={handleVisitLogged}
       />
     </div>
   );

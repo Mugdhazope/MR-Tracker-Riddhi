@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
@@ -14,6 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { logout, getStoredUser } from '@/lib/api';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -23,7 +24,7 @@ const navItems = [
   { label: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
   { label: 'MR Tracking', href: '/admin/mr-tracking', icon: Users },
   { label: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
-  { label: 'Reports', href: '/admin/reports', icon: FileText },
+  // { label: 'Reports', href: '/admin/reports', icon: FileText },
 ];
 
 export function AdminLayout({ children }: AdminLayoutProps) {
@@ -31,13 +32,25 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const user = useMemo(() => getStoredUser(), []);
 
-  const handleLogout = () => {
-    toast({
-      title: 'Logged out',
-      description: 'You have been logged out successfully.',
-    });
-    navigate('/login');
+  const handleLogout = async () => {
+    try {
+      await logout();
+      toast({
+        title: 'Logged out',
+        description: 'You have been logged out successfully.',
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Logout failed';
+      toast({
+        title: 'Logout failed',
+        description: message,
+        variant: 'destructive',
+      });
+    } finally {
+      navigate('/login');
+    }
   };
 
   return (
@@ -172,9 +185,13 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
           <div className="flex items-center gap-2 pl-4 border-l border-border">
             <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-              <span className="text-sm font-medium text-primary">A</span>
+              <span className="text-sm font-medium text-primary">
+                {user?.name?.charAt(0) || user?.username?.charAt(0) || 'A'}
+              </span>
             </div>
-            <span className="text-sm font-medium text-foreground hidden sm:block">Admin</span>
+            <span className="text-sm font-medium text-foreground hidden sm:block">
+              {user?.name || 'Admin'}
+            </span>
           </div>
         </header>
 

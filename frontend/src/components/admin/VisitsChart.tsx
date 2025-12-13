@@ -1,16 +1,12 @@
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-const data = [
-  { name: 'Mon', visits: 45 },
-  { name: 'Tue', visits: 52 },
-  { name: 'Wed', visits: 48 },
-  { name: 'Thu', visits: 65 },
-  { name: 'Fri', visits: 58 },
-  { name: 'Sat', visits: 42 },
-  { name: 'Sun', visits: 38 },
-];
+type ChartPoint = { name: string; visits: number };
 
-export function VisitsChart() {
+interface VisitsChartProps {
+  data: ChartPoint[];
+}
+
+export function VisitsChart({ data }: VisitsChartProps) {
   return (
     <div className="pharma-card p-5 lg:p-6">
       <div className="flex items-center justify-between mb-6">

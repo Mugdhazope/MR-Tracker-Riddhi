@@ -17,6 +17,11 @@ class Doctor(models.Model):
     
 
 class DoctorVisit(models.Model):
+    VISIT_TYPE_CHOICES = [
+        ('self', 'Self Visit'),
+        ('task', 'Task-Based Visit'),
+    ]
+
     mr = models.ForeignKey(User,on_delete=models.CASCADE, related_name='doctor_visits')
     doctor_name = models.ForeignKey(Doctor, on_delete=models.CASCADE, related_name='doctor')
     gps_lat = models.FloatField(null=True, blank=True)
@@ -28,14 +33,30 @@ class DoctorVisit(models.Model):
     visit_time = models.TimeField(auto_now_add=True)
 
     completed = models.BooleanField(default=False)
+    
+    visit_type = models.CharField(
+        max_length=10,
+        choices=VISIT_TYPE_CHOICES,
+        default='self'
+    )
+
 
     def __str__(self):
         return f"Visit to {self.doctor_name} by {self.mr.username} on {self.visit_date}"
     
     class Meta:
         ordering = ['-visit_date', '-visit_time']
+        indexes = [
+            models.Index(fields=['mr', '-visit_date']),
+            models.Index(fields=['visit_date', '-visit_time']),
+        ]
 
 class ShopVisit(models.Model):
+    VISIT_TYPE_CHOICES = [
+        ('self', 'Self Visit'),
+        ('task', 'Task-Based Visit'),
+    ]
+
     mr = models.ForeignKey(User, on_delete=models.CASCADE, related_name='shop_visits')
     
     shop_name = models.CharField(max_length=255)
@@ -46,12 +67,22 @@ class ShopVisit(models.Model):
     visit_date = models.DateField(auto_now_add=True)
     visit_time = models.TimeField(auto_now_add=True)
     completed = models.BooleanField(default=False)
+    
+    visit_type = models.CharField(
+        max_length=10,
+        choices=VISIT_TYPE_CHOICES,
+        default='self'
+    )
 
     def __str__(self):
         return f"Shop Visit to {self.shop_name} by {self.mr.username} on {self.id}"
     
     class Meta:
         ordering = ['-visit_date', '-visit_time']
+        indexes = [
+            models.Index(fields=['mr', '-visit_date']),
+            models.Index(fields=['visit_date', '-visit_time']),
+        ]
 
 
 # class AssignedVisit(models.Model):

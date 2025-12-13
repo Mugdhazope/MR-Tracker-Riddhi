@@ -6,11 +6,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Store, CheckCircle2, MapPin } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { createShopVisit } from '@/lib/api';
 
 interface MedicalShopVisitModalProps {
   open: boolean;
   onClose: () => void;
-  onSave?: (visit: MedicalShopVisit) => void;
+  onVisitLogged?: () => void;
 }
 
 export interface MedicalShopVisit {
@@ -25,7 +26,7 @@ export interface MedicalShopVisit {
 
 type ModalState = 'form' | 'success';
 
-export function MedicalShopVisitModal({ open, onClose, onSave }: MedicalShopVisitModalProps) {
+export function MedicalShopVisitModal({ open, onClose, onVisitLogged }: MedicalShopVisitModalProps) {
   const { toast } = useToast();
   const [modalState, setModalState] = useState<ModalState>('form');
   const [shopName, setShopName] = useState('');
@@ -33,6 +34,7 @@ export function MedicalShopVisitModal({ open, onClose, onSave }: MedicalShopVisi
   const [contactPerson, setContactPerson] = useState('');
   const [notes, setNotes] = useState('');
   const [successData, setSuccessData] = useState<{ shopName: string; time: string } | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleClose = () => {
     setModalState('form');
@@ -44,7 +46,7 @@ export function MedicalShopVisitModal({ open, onClose, onSave }: MedicalShopVisi
     onClose();
   };
 
-  const handleSaveVisit = () => {
+  const handleSaveVisit = async () => {
     if (!shopName.trim()) {
       toast({
         title: 'Shop name required',
@@ -63,30 +65,37 @@ export function MedicalShopVisitModal({ open, onClose, onSave }: MedicalShopVisi
       return;
     }
 
-    const time = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-    const date = new Date().toISOString().split('T')[0];
-    
-    const visit: MedicalShopVisit = {
-      id: `shop-${Date.now()}`,
-      shopName: shopName.trim(),
-      location: location.trim(),
-      contactPerson: contactPerson.trim(),
-      notes: notes.trim(),
-      time,
-      date,
-    };
+    setIsSaving(true);
+    try {
+      await createShopVisit({
+        shop_name: shopName.trim(),
+        location: location.trim(),
+        contact_person: contactPerson.trim() || undefined,
+        notes: notes.trim() || undefined,
+      });
 
-    onSave?.(visit);
-    
-    setSuccessData({
-      shopName: shopName.trim(),
-      time,
-    });
-    setModalState('success');
+      const time = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
 
-    setTimeout(() => {
-      handleClose();
-    }, 2500);
+      setSuccessData({
+        shopName: shopName.trim(),
+        time,
+      });
+      setModalState('success');
+      onVisitLogged?.();
+
+      setTimeout(() => {
+        handleClose();
+      }, 2500);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not save visit';
+      toast({
+        title: 'Error',
+        description: message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -165,9 +174,10 @@ export function MedicalShopVisitModal({ open, onClose, onSave }: MedicalShopVisi
                   variant="hero" 
                   className="flex-1 h-11"
                   onClick={handleSaveVisit}
+                  disabled={isSaving}
                 >
                   <Store className="w-4 h-4 mr-2" />
-                  Save Visit
+                  {isSaving ? 'Saving...' : 'Save Visit'}
                 </Button>
               </div>
             </div>

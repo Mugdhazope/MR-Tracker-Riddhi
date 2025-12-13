@@ -30,7 +30,7 @@ const App = () => (
             <Route path="/admin/mr-tracking" element={<MRTracking />} />
             <Route path="/admin/mr/:id" element={<MRDetail />} />
             <Route path="/admin/analytics" element={<Analytics />} />
-            <Route path="/admin/reports" element={<AdminDashboard />} />
+            {/* <Route path="/admin/reports" element={<AdminDashboard />} /> */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

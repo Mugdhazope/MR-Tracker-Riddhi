@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,17 +6,29 @@ import { Label } from '@/components/ui/label';
 import { Pill, User, Shield, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Helmet } from 'react-helmet-async';
+import { login, getStoredUser } from '@/lib/api';
 
 export default function Login() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [isSubmittingMr, setIsSubmittingMr] = useState(false);
+  const [isSubmittingAdmin, setIsSubmittingAdmin] = useState(false);
   const [showMRPassword, setShowMRPassword] = useState(false);
   const [showAdminPassword, setShowAdminPassword] = useState(false);
   
   const [mrCredentials, setMRCredentials] = useState({ username: '', password: '' });
   const [adminCredentials, setAdminCredentials] = useState({ username: '', password: '' });
 
-  const handleMRLogin = (e: React.FormEvent) => {
+  useEffect(() => {
+    const user = getStoredUser();
+    if (user?.role === 'MR') {
+      navigate('/mr/dashboard');
+    } else if (user?.role === 'admin') {
+      navigate('/admin/dashboard');
+    }
+  }, [navigate]);
+
+  const handleMRLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!mrCredentials.username || !mrCredentials.password) {
       toast({
@@ -26,14 +38,28 @@ export default function Login() {
       });
       return;
     }
-    toast({
-      title: 'Login successful',
-      description: 'Welcome back, MR!',
-    });
-    navigate('/mr/dashboard');
+
+    try {
+      setIsSubmittingMr(true);
+      await login('MR', mrCredentials);
+      toast({
+        title: 'Login successful',
+        description: 'Welcome back, MR!',
+      });
+      navigate('/mr/dashboard');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Login failed';
+      toast({
+        title: 'Login failed',
+        description: message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmittingMr(false);
+    }
   };
 
-  const handleAdminLogin = (e: React.FormEvent) => {
+  const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!adminCredentials.username || !adminCredentials.password) {
       toast({
@@ -43,11 +69,25 @@ export default function Login() {
       });
       return;
     }
-    toast({
-      title: 'Login successful',
-      description: 'Welcome back, Admin!',
-    });
-    navigate('/admin/dashboard');
+
+    try {
+      setIsSubmittingAdmin(true);
+      await login('admin', adminCredentials);
+      toast({
+        title: 'Login successful',
+        description: 'Welcome back, Admin!',
+      });
+      navigate('/admin/dashboard');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Login failed';
+      toast({
+        title: 'Login failed',
+        description: message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmittingAdmin(false);
+    }
   };
 
   return (
@@ -127,8 +167,8 @@ export default function Login() {
                       </button>
                     </div>
                   </div>
-                  <Button type="submit" variant="hero" className="w-full">
-                    Login as MR
+                  <Button type="submit" variant="hero" className="w-full" disabled={isSubmittingMr}>
+                    {isSubmittingMr ? 'Signing in...' : 'Login as MR'}
                   </Button>
                 </form>
               </div>
@@ -189,8 +229,8 @@ export default function Login() {
                       </button>
                     </div>
                   </div>
-                  <Button type="submit" variant="success" className="w-full">
-                    Login as Admin
+                  <Button type="submit" variant="success" className="w-full" disabled={isSubmittingAdmin}>
+                    {isSubmittingAdmin ? 'Signing in...' : 'Login as Admin'}
                   </Button>
                 </form>
               </div>
